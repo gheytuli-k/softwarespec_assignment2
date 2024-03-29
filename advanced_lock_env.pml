@@ -285,105 +285,104 @@ proctype ship(byte shipid) {
 	od;
 }
 
+############################# main_control inshallah ################################################
 
-
-// DUMMY main control process type. Remodel it to control the lock system and handle
 // requests of ships!
-proctype main_control() {
+proctype main_control(int i) {
 	do
-	:: request_west?true ->
+	:: request_west[i]?true ->
 		if 
-		:: LOCK_ORIENTATION == west_low && doors_status.west == closed ->
+	 	:: LOCK_ORIENTATION[i] == west_low && doors_status[i].west == closed -> 
 			if 
-			:: valve_status.higher == open ->
-				change_valve_pos!high_side; valve_pos_changed?true;
-			:: valve_status.higher == closed -> skip;
+			:: valve_status[i].higher == open ->
+				change_doors_pos[i]!high_side; valves_pos_changed[i]?true;
+			:: valve_status[i].higher == closed -> skip
 			fi;
 			if
-			:: lock_water_level == high_level ->
+			:: lock_water_level[i] == high_level ->
 				if 
-				:: valve_status.lower == closed ->
-					change_valve_pos!low_side; valve_pos_changed?true;
+				:: valve_status[i].lower == cloesd ->
+					change_valve_pos[i]!low_side; valve_pos_changed[i]?true;
 				:: else -> skip;
 				fi;
-			:: lock_water_level == low_level && valve_status.lower == open ->
-				change_valve_pos!low_side; valve_pos_changed?true;
+			:: lock_water_level[i] == low_level && valve_status[i].lower == open -> 
+				change_valve_pos[i]!low_side; valve_pos_changed[i]?true;
 			fi;
-			change_doors_pos!west_side; doors_pos_changed?true;
-		:: LOCK_ORIENTATION == east_low && doors_status.west == closed ->
+			change_doors_pos[i]!west_side; doors_pos_changed[i]?true;
+		:: LOCK_ORIENTATION[i] == east_low && doors_status[i].west == closed ->
 			if 
-			:: valve_status.lower == open ->
-				change_valve_pos!low_side; valve_pos_changed?true;
-			:: valve_status.lower == closed -> skip;
+			:: valve_status[i].lower == open ->
+				change_doors_pos[i]!low_side; valves_pos_changed[i]?true;
+			:: valve_status[i].lower == closed -> skip
 			fi;
 			if
-			:: lock_water_level == low_level ->
+			:: lock_water_level[i] == low_level ->
 				if 
-				:: valve_status.higher == closed ->
-					change_valve_pos!high_side; valve_pos_changed?true;
+				:: valve_status[i].higher == closed ->
+					change_valve_pos[i]!high_side; valve_pos_changed[i]?true;
 				:: else -> skip;
 				fi;
-			:: lock_water_level == high_level && valve_status.higher == open ->
-				change_valve_pos!high_side; valve_pos_changed?true;
+			:: lock_water_level[i] == high_level && valve_status[i].higher == open ->
+				change_valve_pos[i]!high_side; valve_pos_changed[i]?true;
 			fi;
-			change_doors_pos!west_side; doors_pos_changed?true;
-		:: doors_status.west == open -> skip;
+			change_doors_pos[i]!west_side; doors_pos_changed[i]?true;
+		:: doors_status[i].west == open -> skip;
 		fi;
-		observed_west[0]?true;
+		observed_west[i]?true;
 		if 
-		:: doors_status.west == open ->
-			change_doors_pos!west_side; doors_pos_changed?true;
-		:: doors_status.west == closed -> skip;
+		:: doors_status[i].west == open -> 
+			change_doors_pos[i]!west_side; doors_pos_changed[i]?true;
+		:: doors_status[i].west == closed -> skip;
 		fi;
 		// if
 		// :: doors_status.west == closed ->
 		// 	change_doors_pos!west_side; doors_pos_changed?true;
 		// :: doors_status.west == open -> skip;
 		// fi;
-		// observed_west[0]?true;
-	:: request_east?true ->
+		// observed_west[0]?true;	
+	:: request_east[i]?true ->
 		if 
-		:: LOCK_ORIENTATION == east_low && doors_status.east == closed ->
+		:: LOCK_ORIENTATION[i] == east_low && doors_status[i].east == closed -> 
 			if 
-			:: valve_status.higher == open ->
-				change_valve_pos!high_side; valve_pos_changed?true;
-			:: valve_status.higher == closed -> skip;
+			:: valve_status[i].higher == open ->
+				change_doors_pos[i]!high_side; valves_pos_changed[i]?true;
+			:: valve_status[i].higher == closed -> skip
 			fi;
 			if
-			:: lock_water_level == high_level ->
+			:: lock_water_level[i] == high_level ->
 				if 
-				:: valve_status.lower == closed ->
-					change_valve_pos!low_side; valve_pos_changed?true;
+				:: valve_status[i].lower == cloesd ->
+					change_valve_pos[i]!low_side; valve_pos_changed[i]?true;
 				:: else -> skip;
 				fi;
-			:: lock_water_level == low_level && valve_status.lower == open ->
-				change_valve_pos!low_side; valve_pos_changed?true;
+			:: lock_water_level[i] == low_level && valve_status[i].lower == open ->
+				change_valve_pos[i]!low_side; valve_pos_changed[i]?true;
 			fi;
-			change_doors_pos!east_side; doors_pos_changed?true;
-		:: LOCK_ORIENTATION == west_low && doors_status.east == closed ->
+			change_doors_pos[i]!east_side; doors_pos_changed[i]?true;
+		:: LOCK_ORIENTATION[i] == west_low && doors_status[i].east == closed ->
 			if 
-			:: valve_status.lower == open ->
-				change_valve_pos!low_side; valve_pos_changed?true;
-			:: valve_status.lower == closed -> skip;
+			:: valve_status[i].lower == open ->
+				change_doors_pos[i]!low_side; valves_pos_changed[i]?true;
+			:: valve_status[i].lower == closed -> skip
 			fi;
 			if
-			:: lock_water_level == low_level ->
+			:: lock_water_level[i] == low_level ->
 				if 
-				:: valve_status.higher == closed ->
-					change_valve_pos!high_side; valve_pos_changed?true;
+				:: valve_status[i].higher == closed ->
+					change_valve_pos[i]!high_side; valve_pos_changed[i]?true;
 				:: else -> skip;
 				fi;
-			:: lock_water_level == high_level && valve_status.higher == open ->
-				change_valve_pos!high_side; valve_pos_changed?true;
+			:: lock_water_level[i] == high_level && valve_status[i].higher == open ->
+				change_valve_pos[i]!high_side; valve_pos_changed[i]?true;
 			fi;
-			change_doors_pos!east_side; doors_pos_changed?true;
-		:: doors_status.east == open -> skip;
+			change_doors_pos[i]!east_side; doors_pos_changed[i]?true;
+		:: doors_status[i].east == open -> skip;
 		fi;
-		observed_east[0]?true;
-		if 
-		:: doors_status.east == open ->
-			change_doors_pos!east_side; doors_pos_changed?true;
-		:: doors_status.east == closed -> skip;
+		observed_east[i]?true;
+		if
+		:: doors_status[i].east == open ->
+			change_doors_pos[i]!east_side; doors_pos_changed[i]?true;
+		:: doors_status[i].east == closed -> skip;
 		fi;
 		// if
 		// :: doors_status.east == closed ->
@@ -392,7 +391,10 @@ proctype main_control() {
 		// fi;
 		// observed_east[0]?true;
 	od;
+			
 }
+
+########################initialization #########################3
 
 proctype monitor() {
 	// an example assertion.
