@@ -1,12 +1,18 @@
 /*
 	Lock system template model for Assignment 2 of 2IX20 - Software Specification.
 	Set up for one lock and a configurable number of ships.
+	
+	Students:
+	- Kasra Gheytuli 1753665
+	- 
 
 	This file contains:
 	- process types for locks and ships that can be used as-is for the single lock case
 	- a dummy specification of the main controller
 	- initialization for the single-lock, single-ship case.
 */
+
+################################################ LTL FORMULAS not sure ################################################
 
 // LTL formulas to be verified
 // Formula p1 holds if the first ship can always eventually enter the lock when going from west to east.
@@ -26,12 +32,28 @@ ltl p6 { [] (((lock_water_level == high_level) <-> (LOCK_ORIENTATION == west_low
 // //Always if a ship requests the eastern pair of doors to open and its status is go_east_to_west, the ship will eventually be inside the lock.
 // ltl p8 { [] ((request_east?true && ship_status == go_east_to_west) -> <>(ship_status == go_east_to_west_in_lock))}
 
-// The number of locks.
-#define N   1
+// // When a request is made to open the western doors of lock i, eventually the western doors of lock i are open.
+ltl p9 { [] ((request_west?true && doors_status.west == closed) -> <>(doors_status.west == open)) }
+
+// // When a request is made to open the eastern doors of lock i, eventually the eastern doors of lock i are open.
+ltl p10 { [] ((request_east?true && doors_status.east == closed) -> <>(doors_status.east == open)) }
+
+// // Always eventually a request is made to open the western doors of lock 0
+ltl p11 { [] <>(request_west?true) }
+
+// // Always eventually a request is made to open the eastern doors of lock N −1
+ltl p12 { [] <>(request_east?true) }
+
+########################################## CONFIGURATION ######################################################
+
+// The number of locks. (adapted for multiple locks)
+#define N   3
 // The number of ships.
 #define M   1
 // The maximum number of ships immediately at either side of a lock.
 #define MAX 2
+
+########################################## DEFINITIONS and CONFIGURATION done ######################################################
 
 // Type for direction of ship.
 mtype:direction = { go_west_to_east, go_west_to_east_in_lock, go_east_to_west, go_east_to_west_in_lock, goal_reached };
@@ -63,22 +85,25 @@ typedef valves_t {
 	mtype:pos higher;
 }
 
+######################## CHannels and conf done inshallah ####################################
+
+
 // Orientation of locks
 // Needs to be adapted for multiple locks
-mtype:lock_orientation LOCK_ORIENTATION = west_low;
+mtype:lock_orientation LOCK_ORIENTATION[N];
 
 // Asynchronous channels to handle ship requests.
-chan request_west = [M] of { bool };
-chan request_east = [M] of { bool };
+chan request_west[N] = [M] of { bool };
+chan request_east[N] = [M] of { bool };
 // Synchronous channels to indicate that a ship has seen that a particular pair
 // of doors has opened.
 chan observed_west[N] = [0] of { bool };
 chan observed_east[N] = [0] of { bool };
 
 // Status of the water level inside a lock.
-mtype:level lock_water_level;
+mtype:level lock_water_level[N];
 // Is there a ship currently in the lock?
-bool lock_is_occupied;
+bool lock_is_occupied[N];
 
 // Status of the ships.
 mtype:direction ship_status[M];
@@ -87,164 +112,168 @@ byte ship_pos[M];
 // Number of ships per position.
 byte nr_of_ships_at_pos[N+1];
 
+########################################## CHANNELS done ######################################################
+
 // Status and synchronous channels for doors and valves.
-doorpairs_t doors_status;
-valves_t valve_status;
-chan change_doors_pos = [0] of { mtype:side };
-chan doors_pos_changed = [0] of { bool };
-chan change_valve_pos = [0] of { mtype:valve_side };
-chan valve_pos_changed = [0] of { bool };
+doorpairs_t doors_status[N];
+valves_t valve_status[N];
+chan change_doors_pos[N] = [0] of { mtype:side };
+chan doors_pos_changed[N] = [0] of { bool };
+chan change_valve_pos[N] = [0] of { mtype:valve_side };
+chan valve_pos_changed[N] = [0] of { bool };
+
+########################################## lock process done inshallah ######################################################
 
 // Lock process type. It reacts to requests to open its doors and valves.
 proctype lock(byte lockid) {
-	do
-	:: change_doors_pos?west_side ->
-		if
-		:: doors_status.west == closed ->
+	do 
+	:: change_doors_pos[lockid]?west_side ->
+		if 
+		:: doors_status[lockid].west == closed ->
 			doors_status.west = open;
-			if
-			:: LOCK_ORIENTATION == west_low -> lock_water_level = low_level; // Water flows out through western (low) door
-			:: LOCK_ORIENTATION == east_low && doors_status.east == closed && valve_status.lower == closed ->
-				lock_water_level = high_level; // Water flows in through western (high) door
+			if 
+			:: LOCK_ORIENTATION[lockid] == west_low -> lock_water_level[lockid] = low_level; // water flows out through western (low) door
+			:: LOCK_ORIENTATION[lockid] == east_low && doors_status[lockid].east == closed && valve_status[lockid].lower == closed -> 
+				lock_water_level[lockid] = high_level; // water flows in through western (high) door
 			:: else -> skip;
 			fi;
-		:: doors_status.west == open -> doors_status.west = closed;
+		:: doors_status[lockid].west == open -> doors_status[lockid].west = closed;
 		fi;
-		doors_pos_changed!true;
-	:: change_doors_pos?east_side ->
-		if
-		:: doors_status.east == closed ->
+		doors_pos_changed[lockid]!true;
+	:: change_doors_pos[lockid]?east_side ->
+		if 
+		:: doors_status[lockid].east == closed ->
 			doors_status.east = open;
-			if
-			:: LOCK_ORIENTATION == east_low -> lock_water_level = low_level; // Water flows out through eastern (low) door
-			:: LOCK_ORIENTATION == west_low && doors_status.west == closed && valve_status.lower == closed ->
-				lock_water_level = high_level; // Water flows in through eastern (high) door
+			if 
+			:: LOCK_ORIENTATION[lockid] == east_low -> lock_water_level[lockid] = low_level; // water flows out through eastern (low) door
+			:: LOCK_ORIENTATION[lockid] == west_low && doors_status[lockid].west == closed && valve_status[lockid].higher == closed -> 
+				lock_water_level[lockid] = high_level; // water flows in through eastern (high) door
 			:: else -> skip;
 			fi;
-		:: doors_status.east == open -> doors_status.east = closed;
+		:: doors_status[lockid].east == open -> doors_status[lockid].east = closed;
 		fi;
-		doors_pos_changed!true;
-	:: change_valve_pos?low_side ->
-		if
-		:: valve_status.lower == closed -> valve_status.lower = open;
-			lock_water_level = low_level;
-		:: valve_status.lower == open -> valve_status.lower = closed;
+		doors_pos_changed[lockid]!true;
+	:: change_valve_pos[lockid]?low_side ->
+		if 
+		:: valve_status[lockid].lower == closed -> valve_status[lockid].lower = open;
+		:: valve_status[lockid].lower == open -> valve_status[lockid].lower = closed;
 		fi;
-		valve_pos_changed!true;
-	:: change_valve_pos?high_side ->
-		if
-		:: valve_status.higher == closed -> valve_status.higher = open;
+		valve_pos_changed[lockid]!true;
+	:: change_valve_pos[lockid]?high_side ->
+		if 
+		:: valve_status[lockid].higher == closed -> valve_status[lockid].higher = open;
 			if
-			:: LOCK_ORIENTATION == west_low && doors_status.west == closed && valve_status.lower == closed ->
-				lock_water_level = high_level; // Water flows in as western (low) door is closed
-			:: LOCK_ORIENTATION == east_low && doors_status.east == closed && valve_status.lower == closed ->
-				lock_water_level = high_level; // Water flows in as eastern (low) door is closed
+			:: LOCK_ORIENTATION[lockid] == west_low && doors_status[lockid].west == closed && valve_status[lockid].lower == closed -> 
+				lock_water_level[lockid] = high_level; // water flows in through western (high) door
+			:: LOCK_ORIENTATION[lockid] == east_low && doors_status[lockid].east == closed && valve_status[lockid].lower == closed -> 
+				lock_water_level[lockid] = high_level; // water flows in through eastern (high) door
 			:: else -> skip;
 			fi;
-		:: valve_status.higher == open -> valve_status.higher = closed;
+		:: valve_status[lockid].higher == open -> valve_status[lockid].higher = closed;
 		fi;
-		valve_pos_changed!true;
+		valve_pos_changed[lockid]!true;
 	od;
 }
+
+###################################### ship process done inshallah #############################################################
 
 // Ship process type. Based on its direction and position, it makes requests to open doors,
 // and moves when possible.
 proctype ship(byte shipid) {
 	do
 	:: ship_status[shipid] == go_east_to_west && ship_pos[shipid] != 0 ->
-		do
-		:: doors_status.east == closed ->
-			request_east!true;
-			atomic { doors_status.east == open ->
+		do 
+		:: doors_status[ship_pos[shipid]].east == closed ->
+			request_east[ship_pos[shipid]]!true;
+			atomic { doors_status[ship_pos[shipid]].east == open -> 
 				if
-				:: !lock_is_occupied ->
+				:: !lock_is_occupied[ship_pos[shipid]] ->
 						ship_status[shipid] = go_east_to_west_in_lock;
-						lock_is_occupied = true;
+						lock_is_occupied[ship_pos[shipid]] = true;
 						nr_of_ships_at_pos[ship_pos[shipid]]--;
-						observed_east[0]!true;
+						observed_east[ship_pos[shipid]]!true;
 						break;
-				:: lock_is_occupied ->
-						observed_east[0]!true;
+				:: lock_is_occupied[ship_pos[shipid]] -> 
+                		observed_east[ship_pos[shipid]]!true;
 				fi; }
-		:: atomic { doors_status.east == open &&
-			!lock_is_occupied ->
+		:: atomic { doors_status[ship_pos[shipid]].east == open && !lock_is_occupied[ship_pos[shipid]] ->
 				ship_status[shipid] = go_east_to_west_in_lock;
-				lock_is_occupied = true;
+				lock_is_occupied[ship_pos[shipid]] = true;
 				nr_of_ships_at_pos[ship_pos[shipid]]--;
 				break; }
 		od;
 	:: ship_status[shipid] == go_east_to_west_in_lock ->
 		do
-		:: doors_status.west == closed ->
-			request_west!true;
-			atomic { doors_status.west == open ->
+		:: doors_status[ship_pos[shipid]].west == closed ->		
+			request_west[ship_pos[shipid]]!true;
+			atomic { doors_status[ship_pos[shipid]].west == open -> 
 				if
-				:: (nr_of_ships_at_pos[ship_pos[shipid]-1] < MAX
-					|| ship_pos[shipid]-1 == 0) ->
+				:: (nr_of_ships_at_pos[ship_pos[shipid] - 1] < MAX 
+					|| ship_pos[shipid] - 1  == 0) ->
+					ship_status[shipid] = go_east_to_west;
+					lock_is_occupied[ship_pos[shipid]] = false;
+					ship_pos[shipid]--;
+					nr_of_ships_at_pos[ship_pos[shipid]]++;
+					observed_west[ship_pos[shipid]]!true;
+					break;
+				:: (nr_of_ships_at_pos[ship_pos[shipid] - 1] == MAX 
+					&& ship_pos[shipid] - 1 != 0) -> 
+						observed_west[ship_pos[shipid]]!true;
+				fi; }
+		:: atomic { doors_status[ship_pos[shipid]].west == open && 
+					(nr_of_ships_at_pos[ship_pos[shipid] - 1] < MAX 
+					|| ship_pos[shipid] - 1  == 0) ->
 						ship_status[shipid] = go_east_to_west;
-						lock_is_occupied = false;
+						lock_is_occupied[ship_pos[shipid]] = false;
 						ship_pos[shipid]--;
 						nr_of_ships_at_pos[ship_pos[shipid]]++;
-						observed_west[0]!true;
-						break;
-				:: (nr_of_ships_at_pos[ship_pos[shipid]-1] == MAX
-					&& ship_pos[shipid]-1 != 0) ->
-						observed_west[0]!true;
-				fi; }
-		:: atomic { doors_status.west == open &&
-			(nr_of_ships_at_pos[ship_pos[shipid]-1] < MAX
-			|| ship_pos[shipid]-1 == 0) ->
-				ship_status[shipid] = go_east_to_west;
-				lock_is_occupied = false;
-				ship_pos[shipid]--;
-				nr_of_ships_at_pos[ship_pos[shipid]]++;
-				break; }
+						break; }
 		od;
 	:: ship_status[shipid] == go_west_to_east && ship_pos[shipid] != N ->
 		do
-		:: doors_status.west == closed ->
-			request_west!true;
-			atomic { doors_status.west == open ->
+		:: doors_status[ship_pos[shipid]].west == closed ->
+			request_west[ship_pos[shipid]]!true;
+			atomic { doors_status[ship_pos[shipid]].west == open ->
 				if
-				:: !lock_is_occupied ->
-						ship_status[shipid] = go_west_to_east_in_lock;
-						lock_is_occupied = true;
-						nr_of_ships_at_pos[ship_pos[shipid]]--;
-						observed_west[0]!true;
-						break;
-				:: lock_is_occupied ->
-						observed_west[0]!true;
+				:: !lock_is_occupied[ship_pos[shipid]] ->
+					ship_status[shipid] = go_west_to_east_in_lock;
+					lock_is_occupied[ship_pos[shipid]] = true;
+					nr_of_ships_at_pos[ship_pos[shipid]]--;
+					observed_west[ship_pos[shipid]]!true;
+					break;
+				:: lock_is_occupied[ship_pos[shipid]] -> 
+						observed_west[ship_pos[shipid]]!true;
 				fi; }
-		:: atomic { doors_status.west == open &&
-			!lock_is_occupied ->
+		:: atomic { doors_status[ship_pos[shipid]].west == open && 
+			!lock_is_occupied[ship_pos[shipid]] ->
 				ship_status[shipid] = go_west_to_east_in_lock;
-				lock_is_occupied = true;
+				lock_is_occupied[ship_pos[shipid]] = true;
 				nr_of_ships_at_pos[ship_pos[shipid]]--;
 				break; }
 		od;
 	:: ship_status[shipid] == go_west_to_east_in_lock ->
 		do
-		:: doors_status.east == closed ->
-			request_east!true;
-			atomic { doors_status.east == open ->
+		:: doors_status[ship_pos[shipid]].east == closed ->
+			request_east[ship_pos[shipid]]!true;
+			atomic { doors_status[ship_pos[shipid]].east == open ->
 				if
-				:: (nr_of_ships_at_pos[ship_pos[shipid]+1] < MAX
-					|| ship_pos[shipid]+1 == N) ->
-						ship_status[shipid] = go_west_to_east;
-						lock_is_occupied = false;
-						ship_pos[shipid]++;
-						nr_of_ships_at_pos[ship_pos[shipid]]++;
-						observed_east[0]!true;
-						break;
-				:: (nr_of_ships_at_pos[ship_pos[shipid]+1] == MAX
-					&& ship_pos[shipid]+1 != N) ->
-						observed_east[0]!true;
+				:: (nr_of_ships_at_pos[ship_pos[shipid] + 1] < MAX 
+					|| ship_pos[shipid] + 1 == N) ->
+					ship_status[shipid] = go_west_to_east;
+					lock_is_occupied[ship_pos[shipid]] = false;
+					ship_pos[shipid]++;
+					nr_of_ships_at_pos[ship_pos[shipid]]++;
+					observed_east[ship_pos[shipid]]!true;
+					break;
+				:: (nr_of_ships_at_pos[ship_pos[shipid] + 1] == MAX 
+					&& ship_pos[shipid] + 1 != N) -> 
+						observed_east[ship_pos[shipid]]!true;
 				fi; }
-		:: atomic { doors_status.east == open &&
-			(nr_of_ships_at_pos[ship_pos[shipid]+1] < MAX
-			|| ship_pos[shipid]+1 == N) ->
+		:: atomic { doors_status[ship_pos[shipid]].east == open &&
+			(nr_of_ships_at_pos[ship_pos[shipid] + 1] < MAX 
+			|| ship_pos[shipid] + 1 == N) ->
 				ship_status[shipid] = go_west_to_east;
-				lock_is_occupied = false;
+				lock_is_occupied[ship_pos[shipid]] = false;
 				ship_pos[shipid]++;
 				nr_of_ships_at_pos[ship_pos[shipid]]++;
 				break; }
@@ -255,6 +284,8 @@ proctype ship(byte shipid) {
 		ship_status[shipid] = goal_reached; ship_status[shipid] = go_east_to_west;
 	od;
 }
+
+
 
 // DUMMY main control process type. Remodel it to control the lock system and handle
 // requests of ships!
@@ -408,4 +439,4 @@ init {
 		:: else -> break;
 		od;
 	}
-}s
+}
